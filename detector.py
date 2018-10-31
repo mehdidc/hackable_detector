@@ -1,5 +1,11 @@
 import torch.nn as nn
 import torch
+from torch.nn.init import xavier_uniform
+
+
+def weights_init(m):
+    if isinstance(m, nn.Conv2d):
+        xavier_uniform(m.weight.data)
 
 
 class DetectorBuilder:
@@ -10,10 +16,10 @@ class DetectorBuilder:
         self.branch_layer_index_for_scale = []
         self.aspect_ratios_for_scale = []
 
-    def add_layers_from(self, model):
-        self.layers.append(model)
-    
-    def add_layers(self, layers):
+    def add_layers(self, layers, init=True):
+        if init:
+            for layer in layers:
+                layer.apply(weights_init)
         self.layers.extend(layers)
 
     def add_prediction_branch(self, scale, aspect_ratios):
@@ -42,7 +48,12 @@ def default_prediction_layer(in_channels, out_channels):
 
 class Detector(nn.Module):
 
-    def __init__(self, layers, scales, branch_layer_index_for_scale, aspect_ratios_for_scale, nb_classes, nb_coords=4, prediction_layer_func=default_prediction_layer):
+    def __init__(self, 
+        layers, scales, 
+        branch_layer_index_for_scale, aspect_ratios_for_scale, 
+        nb_classes, nb_coords=4, 
+        prediction_layer_func=default_prediction_layer):
+
         super().__init__()
         self.layers = nn.ModuleList(layers)
         self.scales = scales
@@ -90,18 +101,18 @@ class Detector(nn.Module):
             boxes = boxes.view(batch_size, len(aspect_ratios), self.nb_coords, h, w)
             boxes = boxes.transpose(2, 4)
             boxes = boxes.contiguous()
-            boxes = boxes.view(-1, self.nb_coords)
+            boxes = boxes.view(boxes.size(0), -1, self.nb_coords)
             boxes_list.append(boxes)
             
             classes = classes.view(batch_size, len(aspect_ratios), self.nb_classes, h, w) 
-            classes = classes.transpose(1, 3)
+            classes = classes.transpose(2, 4)
             classes = classes.contiguous()
-            classes = classes.view(-1, self.nb_classes)
+            classes = classes.view(classes.size(0), -1, self.nb_classes)
             classes = classes.contiguous()
             classes_list.append(classes)
         
         boxes = torch.cat(boxes_list, dim=1)
-        classe = torch.cat(classes_list, dim=1)
+        classes = torch.cat(classes_list, dim=1)
         return boxes, classes
 
     def forward(self, X):

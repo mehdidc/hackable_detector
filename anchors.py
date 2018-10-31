@@ -3,6 +3,8 @@ import torch.nn as nn
 import torch
 from bounding_boxes import get_boxes_coords
 from bounding_boxes import XMIN, YMIN, WIDTH, HEIGHT
+from bounding_boxes import encode_bounding_boxes
+from match import match
 
 class Anchors:
 
@@ -11,8 +13,12 @@ class Anchors:
         self.aspect_ratios_for_scale = aspect_ratios_for_scale
         self.feature_map_dim_for_scale = feature_map_dim_for_scale
         self.offset = offset
+        self._prepare()
+
+    def _prepare(self):
+        self.bounding_boxes = self._build_bounding_boxes()
     
-    def bounding_boxes(self):
+    def _build_bounding_boxes(self):
         boxes = self.bounding_boxes_on_grid()
         boxes = [boxes_for_scale.reshape((-1, 4)) for boxes_for_scale in boxes]
         return np.concatenate(boxes, axis=0)
@@ -48,3 +54,26 @@ class Anchors:
             feature_map_dim_for_scale, 
             offset=offset
         )
+
+    def match_and_encode(self, image_boxes, image_classes):
+        anchor_boxes = self.bounding_boxes
+        if len(image_boxes) == 0:
+            return np.zeros_like(anchor_boxes), np.zeros((anchor_boxes.shape[0],))
+        image_boxes = np.array(image_boxes)
+        image_classes = np.array(image_classes)
+
+        matching = match(anchor_boxes, image_boxes)
+        rows, cols = np.where(matching)
+        encoded_boxes = np.zeros_like(anchor_boxes)
+        encoded_boxes[rows] = encode_bounding_boxes(
+            anchor_boxes[rows], 
+            image_boxes[cols]
+        )
+        encoded_boxes = torch.from_numpy(encoded_boxes)
+        encoded_boxes = encoded_boxes.float()
+        
+        classes = np.zeros((len(anchor_boxes),))
+        classes[rows] = image_classes[cols]
+        classes = torch.from_numpy(classes)
+        classes = classes.long()
+        return encoded_boxes, classes

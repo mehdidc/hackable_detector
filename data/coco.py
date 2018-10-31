@@ -27,7 +27,3 @@ def get_annotations(images_folder, annotations_file):
         filenames.append(image_filename[image_id])
         annotations.append(image_annotations[image_id])
     return filenames, annotations
-
-if __name__ == '__main__':
-    filenames, annotations = get_annotations('ddwd', 'annotations/instances_val2014.json')
-    print(annotations[0:10])
