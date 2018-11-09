@@ -36,12 +36,9 @@ anchors = data['anchors']
 transform = data['transform']
 
 filenames, annotations = get_annotations(
-    images_folder='alcohol/images/train',
-    annotations_file='alcohol/annotations/train.json'
+    images_folder='small',
+    annotations_file='small/annotations.json'
 )
-filenames = filenames[0:1000]
-annotations = annotations[0:1000]
-annotations = [[(box, 'alcohol') for box, class_id in anns] for anns in annotations]
 image_size = 224 
 transform = Compose([
     HorizontalFlip(p=0.0),
