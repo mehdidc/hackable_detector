@@ -189,6 +189,10 @@ def main(*, images_folder, annotations_file):
                     pred_classes,
                     classes,
                     size_average=False) / nb_pos
+            is_train = (batch_index % 10) > 0 
+            detector.zero_grad()
+            loss = loc_loss + class_loss
+            loss.backward()
             # eval mini-batch
             # calculate acc on positive examples and negative ones
             ct = classes
@@ -206,10 +210,6 @@ def main(*, images_folder, annotations_file):
             _, pred_class = cp_neg.max(dim=1)
             neg_acc = (pred_class == ct_neg).float().mean()
             # train
-            is_train = True
-            detector.zero_grad()
-            loss = loc_loss + class_loss
-            loss.backward()
             if is_train:
                 optimizer.step()
                 writer.add_scalar('data/loss', loss.item(), nb_iter)
