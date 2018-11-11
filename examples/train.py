@@ -10,7 +10,7 @@ from data.base import DetectionDataset, load_image
 from loss import FocalLoss
 from detector import DetectorBuilder
 from torchvision.models import vgg16
-from anchors import Anchors
+from anchors import build_anchors_matrix_from_detector
 from match import match_ssd_method, match_bijective_method
 from albumentations import HorizontalFlip
 from albumentations import Normalize
@@ -25,6 +25,7 @@ from skimage.transform import resize
 import numpy as np
 import time
 
+import sampling as sampling_strategy
 
 def get_lr(optimizer):
     return optimizer.param_groups[0]['lr']
@@ -45,7 +46,7 @@ def prediction_layer(in_channels, out_channels):
 def main(*, images_folder, annotations_file):
     writer = SummaryWriter(log_dir='log')
     # hypers
-    batch_size = 16
+    batch_size = 4
     nb_epochs = 10000
     image_size = 300
     # dataset
@@ -108,7 +109,7 @@ def main(*, images_folder, annotations_file):
         nb_classes=nb_classes,
         prediction_layer_func=prediction_layer
     )
-    anchors = Anchors.from_detector(
+    anchors = build_anchors_matrix_from_detector(
         detector,
         input_shape=(3, image_size, image_size)
     )
@@ -131,7 +132,6 @@ def main(*, images_folder, annotations_file):
         match_method=match_bijective_method,
         transform=transform,
     )
-    print(dataset.nb_classes)
     dataloader = DataLoader(
         dataset,
         batch_size=batch_size,
@@ -140,7 +140,7 @@ def main(*, images_folder, annotations_file):
     )
     class_loss_func = FocalLoss(gamma=2)
     optimizer = Adam(detector.parameters(), lr=1e-3)
-    imbalance_strategy = 'none'
+    imbalance_strategy = sampling_strategy.none 
     # Load
     if os.path.exists('model.th'):
         model_dict = torch.load('model.th')
@@ -184,65 +184,12 @@ def main(*, images_folder, annotations_file):
                 pred_boxes[pos],
                 encoded_boxes[pos],
                 size_average=False) / nb_pos
-            if imbalance_strategy == 'none':
-                class_loss = class_loss_func(
+            pred_classes, classes = imbalance_strategy(pred_classes, classes)
+            class_loss = class_loss_func(
                     pred_classes,
                     classes,
                     size_average=False) / nb_pos
-            elif imbalance_strategy == 'undersampling':
-                ct = classes
-                cp = pred_classes
-                ind = torch.arange(len(ct))
-                pos = ind[(ct.data.cpu() > 0)].long().cuda()
-                neg = ind[(ct.data.cpu() == 0)].long().cuda()
-                ct_pos = ct[pos]
-                cp_pos = cp[pos]
-                ct_neg = ct[neg]
-                cp_neg = cp[neg]
-                nb = len(ct_pos)
-                inds = torch.from_numpy(np.random.randint(0, len(ct_neg), nb))
-                inds = inds.long().cuda()
-                ct_neg = ct_neg[inds]
-                cp_neg = cp_neg[inds]
-                true = torch.cat((ct_pos, ct_neg), dim=0)
-                pred = torch.cat((cp_pos, cp_neg), dim=0)
-                class_loss = class_loss_func(
-                    pred, true, size_average=False) / nb_pos
-            elif imbalance_strategy == 'oversampling':
-                ct = classes
-                cp = pred_classes
-                ind = torch.arange(len(ct))
-                pos = ind[(ct.data.cpu() > 0)].long().cuda()
-                neg = ind[(ct.data.cpu() == 0)].long().cuda()
-                ct_pos = ct[pos]
-                cp_pos = cp[pos]
-                ct_neg = ct[neg]
-                cp_neg = cp[neg]
-                nb = len(ct_neg)
-                inds = torch.from_numpy(
-                    np.random.randint(0, len(ct_pos), nb // 3))
-                inds = inds.long().cuda()
-                ct_pos = ct_pos[inds]
-                cp_pos = cp_pos[inds]
-                true = torch.cat((ct_pos, ct_neg), dim=0)
-                pred = torch.cat((cp_pos, cp_neg), dim=0)
-                class_loss = class_loss_func(pred, true)
-            elif imbalance_strategy == 'hard_negative_mining':
-                pos = classes_orig > 0
-                nb_pos = (classes_orig > 0).long().sum(dim=1).view(-1, 1)
-                nb_neg = nb_pos * 3
-                class_loss = class_loss_func(
-                    pred_classes, classes, reduce=False)
-                class_loss = class_loss.view(classes_orig.size(0), -1)
-                class_loss[pos] = 0
-                _, inds = class_loss.sort(1, descending=True)
-                _, ranks = inds.sort(1)
-                mask = (ranks < nb_neg) | pos
-                mask = mask.view(-1)
-                class_loss = class_loss_func(
-                    pred_classes[mask],
-                    classes[mask],
-                    size_average=False) / nb_pos.sum()
+            # eval mini-batch
             # calculate acc on positive examples and negative ones
             ct = classes
             cp = pred_classes
@@ -301,7 +248,7 @@ def main(*, images_folder, annotations_file):
                 true_boxes = encoded_boxes_orig[idx].view(-1, 4)
                 true_boxes = true_boxes.cpu().numpy()
                 true_boxes = decode_bounding_boxes(
-                    anchors.bounding_boxes, true_boxes
+                    anchors, true_boxes
                 )
                 true_boxes[:, XMIN] *= orig_w
                 true_boxes[:, YMIN] *= orig_h
@@ -315,7 +262,7 @@ def main(*, images_folder, annotations_file):
                 pred_boxes = pred_boxes_orig[idx].view(-1, 4)
                 pred_boxes = pred_boxes.detach().cpu().numpy()
                 pred_boxes = decode_bounding_boxes(
-                    anchors.bounding_boxes, pred_boxes)
+                    anchors, pred_boxes)
                 pred_boxes[:, XMIN] *= orig_w
                 pred_boxes[:, YMIN] *= orig_h
                 pred_boxes[:, WIDTH] *= orig_w

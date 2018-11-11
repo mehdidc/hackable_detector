@@ -79,8 +79,7 @@ for idx in range(100):
     pred_boxes = pred_boxes.cpu().numpy()
     pred_classes = pred_classes.cpu().numpy()
 
-    pred_boxes = decode_bounding_boxes(anchors.bounding_boxes, pred_boxes)
-    #pred_boxes = anchors.bounding_boxes.copy()
+    pred_boxes = decode_bounding_boxes(anchors, pred_boxes)
     pred_boxes[:, XMIN] *= orig_w
     pred_boxes[:, YMIN] *=  orig_h
     pred_boxes[:, WIDTH] *=  orig_w
@@ -121,7 +120,7 @@ for idx in range(100):
                 print('')
     # draw anchors
     draw_anchors = True 
-    aboxes = anchors.bounding_boxes.copy()
+    aboxes = anchors.copy()
     aboxes[:, XMIN] *= orig_w
     aboxes[:, YMIN] *= orig_h
     aboxes[:, WIDTH] *= orig_w

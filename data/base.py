@@ -7,12 +7,14 @@ from bounding_boxes import boxes_min_max_to_width_height_format
 from bounding_boxes import boxes_width_height_to_min_max_format
 from bounding_boxes import scale_boxes
 
+from anchors import match_and_encode
+
 
 class DetectionDataset:
 
     def __init__(self, filenames, annotations, encode_boxes=False, anchors=None, match_method=None, transform=None):
         if encode_boxes:
-            assert anchors and match_method, 'If encode_boxes is True, you need to provide `anchors` and `match_methdod`'
+            assert anchors is not None and match_method is not None, 'If encode_boxes is True, you need to provide `anchors` and `match_methdod`'
         self.filenames = filenames
         self.annotations = annotations
         self.encode_boxes = encode_boxes
@@ -26,6 +28,7 @@ class DetectionDataset:
             class_id for anns in self.annotations for box, class_id in anns]
         classes = np.unique(classes)
         classes = sorted(classes)
+        self.classes = classes
         self.encode_class = {
             class_id: (i + 1)
             for i, class_id in enumerate(classes)
@@ -58,8 +61,8 @@ class DetectionDataset:
             boxes = boxes_min_max_to_width_height_format(boxes)
         im = im.transpose((2, 0, 1))
         if self.encode_boxes:
-            boxes, classes = self.anchors.match_and_encode(
-                boxes, classes,
+            boxes, classes = match_and_encode(
+                self.anchors, boxes, classes,
                 match_method=self.match_method,
             )
         im = torch.from_numpy(im).float()
