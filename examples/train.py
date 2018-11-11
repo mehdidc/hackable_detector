@@ -189,7 +189,7 @@ def main(*, images_folder, annotations_file):
                     pred_classes,
                     classes,
                     size_average=False) / nb_pos
-            is_train = (batch_index % 10) > 0 
+            is_train = ((batch_index % 10) > 0 or len(dataloader) < 10)
             detector.zero_grad()
             loss = loc_loss + class_loss
             loss.backward()

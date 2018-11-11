@@ -15,26 +15,27 @@ def draw_bounding_boxes(
 
     for i, (bounding_box, class_name) in enumerate(zip(bounding_boxes, classes)):
         x, y, w, h = bounding_box
-        x = int(x) + pad
-        y = int(y) + pad
-        w = int(w)
-        h = int(h)
-        xmin, ymin, xmax, ymax = x, y, x + w, y + h
+        xmin = (x) + pad
+        ymin = (y) + pad
+        xmax = (x + w) + pad
+        ymax = (y + h) + pad
         xmin = np.clip(xmin, 0, image.shape[1])
         xmax = np.clip(xmax, 0, image.shape[1])
         ymin = np.clip(ymin, 0, image.shape[0])
         ymax = np.clip(ymax, 0, image.shape[0])
+        xmin = int(round(xmin))
+        ymin = int(round(ymin))
+        xmax = int(round(xmax))
+        ymax = int(round(ymax))
         image = cv2.rectangle(image, (xmin, ymin), (xmax, ymax), color)
-
         if scores is not None:
             text = '{}({:.2f})'.format(class_name, scores[i])
         else:
             text = class_name
-        x, y = np.clip(x, 0, image.shape[1]), np.clip(y, 0, image.shape[0])
         image = cv2.putText(
             image,
             text,
-            (x, y),
+            (xmin, ymin),
             font,
             font_scale,
             text_color,
