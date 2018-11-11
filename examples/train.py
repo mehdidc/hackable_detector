@@ -53,8 +53,7 @@ def main(*, images_folder, annotations_file):
         images_folder=images_folder,
         annotations_file=annotations_file,
     )
-    nb_classes = 1 + \
-        len(set(class_id for ann in annotations for box, class_id in ann))
+    nb_classes = 1 + len(set(class_id for ann in annotations for box, class_id in ann))
     print('Nb classes : {}'.format(nb_classes))
     # detector model
     vgg = vgg16(pretrained=True).features
@@ -114,11 +113,15 @@ def main(*, images_folder, annotations_file):
         input_shape=(3, image_size, image_size)
     )
     detector = detector.cuda()
+    normalize = Normalize(
+        mean=(0.485, 0.456, 0.406), 
+        std=(0.229, 0.224, 0.225), 
+        max_pixel_value=255.
+    )
     transform = Compose([
         HorizontalFlip(p=0.0),
         Resize(height=image_size, width=image_size, p=1.0),
-        Normalize(mean=(0.485, 0.456, 0.406), std=(
-            0.229, 0.224, 0.225), max_pixel_value=255.),
+        normalize,
     ])
     dataset = DetectionDataset(
         filenames,
@@ -128,6 +131,7 @@ def main(*, images_folder, annotations_file):
         match_method=match_bijective_method,
         transform=transform,
     )
+    print(dataset.nb_classes)
     dataloader = DataLoader(
         dataset,
         batch_size=batch_size,

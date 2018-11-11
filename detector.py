@@ -5,7 +5,7 @@ from torch.nn.init import xavier_uniform
 
 def weights_init(m):
     if isinstance(m, nn.Conv2d):
-        xavier_uniform(m.weight.data)
+        nn.init.xavier_uniform_(m.weight.data)
 
 
 class DetectorBuilder:

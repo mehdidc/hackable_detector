@@ -3,12 +3,11 @@ from match import iou
 
 def non_maximal_suppression(boxes, confidences, thres=0.3):
     # TODO replace with cv2.dnn.NMSBoxes ?
-    indices = np.arange(len(boxes))
-    (boxes, confidences, indices) = _sort_mutually(
-        (boxes, confidences, indices),
-        on=confidences,
-        reverse=True
-    )
+    boxes = np.array(boxes)
+    confidences = np.array(confidences)
+    indices = np.argsort(confidences)[::-1]
+    boxes = boxes[indices]
+    confidences = confidences[indices]
     boxes = np.array(boxes)
     confidences = np.array(confidences)
     indices = np.array(indices)
@@ -31,14 +30,3 @@ def non_maximal_suppression(boxes, confidences, thres=0.3):
         confidences = next_confidences[ious < thres]
         indices = next_indices[ious < thres]
     return result_indices
-
-
-def _sort_mutually(lists, on, reverse=False):
-    nb_elements = len(lists[0])
-    indices = list(range(nb_elements))
-    sorted_indices = sorted(indices, key=lambda i: on[i], reverse=reverse)
-    results = []
-    for list_cur in lists:
-        list_cur = [list_cur[ind] for ind in sorted_indices]
-        results.append(list_cur)
-    return results
