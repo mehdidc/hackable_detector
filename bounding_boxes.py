@@ -6,6 +6,8 @@ def encode_bounding_boxes(anchors_boxes, image_boxes, eps=1e-10):
     ax, ay, aw, ah = get_boxes_coords(anchors_boxes)
     bx, by, bw, bh = get_boxes_coords(image_boxes)
     boxes = np.zeros_like(anchors_boxes)
+    assert np.all(bw>0)
+    assert np.all(aw>0)
     boxes[:, XMIN] = (bx - ax) / aw
     boxes[:, YMIN] = (by - ay) / ah
     boxes[:, WIDTH] = np.log(eps + bw / aw)

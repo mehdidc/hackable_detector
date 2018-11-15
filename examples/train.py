@@ -46,7 +46,7 @@ def prediction_layer(in_channels, out_channels):
 def main(*, images_folder, annotations_file):
     writer = SummaryWriter(log_dir='log')
     # hypers
-    batch_size = 4
+    batch_size = 32
     nb_epochs = 10000
     image_size = 300
     # dataset
@@ -239,7 +239,7 @@ def main(*, images_folder, annotations_file):
                       neg_acc.item(),
                       time.time() - t0,
                   ))
-            if nb_iter % 10 == 0 or True:
+            if nb_iter % 10 == 0:
                 idx = np.random.randint(0, len(images))
                 orig_img = load_image(filenames[idx])
                 orig_img = resize(orig_img, (768, 1024), preserve_range=True)
