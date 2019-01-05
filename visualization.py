@@ -3,15 +3,16 @@ import numpy as np
 
 
 def draw_bounding_boxes(
-        image,
-        bounding_boxes,
-        classes,
-        scores=None,
-        color=(0, 255, 0),
-        text_color=(0, 255, 0),
-        font=cv2.FONT_HERSHEY_PLAIN,
-        font_scale=1.0,
-        pad=0):
+    image,
+    bounding_boxes,
+    classes,
+    scores=None,
+    color=(0, 255, 0),
+    text_color=(0, 255, 0),
+    font=cv2.FONT_HERSHEY_PLAIN,
+    font_scale=1.0,
+    pad=0,
+):
 
     for i, (bounding_box, class_name) in enumerate(zip(bounding_boxes, classes)):
         x, y, w, h = bounding_box
@@ -29,16 +30,8 @@ def draw_bounding_boxes(
         ymax = int(round(ymax))
         image = cv2.rectangle(image, (xmin, ymin), (xmax, ymax), color)
         if scores is not None:
-            text = '{}({:.2f})'.format(class_name, scores[i])
+            text = "{}({:.2f})".format(class_name, scores[i])
         else:
             text = class_name
-        image = cv2.putText(
-            image,
-            text,
-            (xmin, ymin),
-            font,
-            font_scale,
-            text_color,
-            2,
-        )
+        image = cv2.putText(image, text, (xmin, ymin), font, font_scale, text_color, 2)
     return image

@@ -6,14 +6,17 @@ import numba
 
 def match_ssd_method(anchor_boxes, boxes, iou_threshold=0.5):
     ious = iou_all_pairs(anchor_boxes, boxes)
-    matching = np.zeros_like(ious).astype('bool')
+    matching = np.zeros_like(ious).astype("bool")
     matching[np.argmax(ious, axis=0), np.arange(len(boxes))] = True
-    matching[np.arange(len(anchor_boxes)), np.argmax(ious, axis=1)] |= (np.max(ious, axis=1) > iou_threshold)
+    matching[np.arange(len(anchor_boxes)), np.argmax(ious, axis=1)] |= (
+        np.max(ious, axis=1) > iou_threshold
+    )
     return matching
+
 
 def match_bijective_method(anchor_boxes, boxes, iou_threshold=0.5):
     ious = iou_all_pairs(anchor_boxes, boxes)
-    matching = np.zeros_like(ious).astype('bool')
+    matching = np.zeros_like(ious).astype("bool")
     area = boxes[:, 2] * boxes[:, 3]
     for b in np.argsort(area)[::-1]:
         alist = np.argsort(ious[:, b])[::-1]
@@ -26,8 +29,7 @@ def match_bijective_method(anchor_boxes, boxes, iou_threshold=0.5):
 
 def iou_all_pairs(boxes, other_boxes):
     return iou(
-        boxes.reshape((len(boxes), 1, 4)),
-        other_boxes.reshape((1, len(other_boxes), 4)),
+        boxes.reshape((len(boxes), 1, 4)), other_boxes.reshape((1, len(other_boxes), 4))
     )
 
 
@@ -49,11 +51,11 @@ def iou(boxes, other_boxes, eps=1e-10):
 
 def match_ordered_boxes(pred_boxes, true_boxes, iou_threshold=0.5):
     ious = iou_all_pairs(pred_boxes, true_boxes)
-    matching = np.zeros_like(ious).astype('bool')
-    true_already_matched = np.zeros(len(true_boxes)).astype('bool')
+    matching = np.zeros_like(ious).astype("bool")
+    true_already_matched = np.zeros(len(true_boxes)).astype("bool")
     for pred_ind in range(len(pred_boxes)):
         true_match_ind = -1
-        true_best_iou = 0 
+        true_best_iou = 0
         for true_ind in range(len(true_boxes)):
             iou = ious[pred_ind, true_ind]
             if iou <= iou_threshold:

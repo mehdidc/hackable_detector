@@ -40,8 +40,7 @@ def oversample(pred_classes, true_classes, negative_per_positive=3, random_state
     ct_neg = ct[neg]
     cp_neg = cp[neg]
     nb = len(ct_neg)
-    inds = torch.from_numpy(
-        rng.randint(0, len(ct_pos), nb // negative_per_positive))
+    inds = torch.from_numpy(rng.randint(0, len(ct_pos), nb // negative_per_positive))
     inds = inds.long().cuda()
     ct_pos = ct_pos[inds]
     cp_pos = cp_pos[inds]
@@ -50,13 +49,18 @@ def oversample(pred_classes, true_classes, negative_per_positive=3, random_state
     return pred, true
 
 
-def hard_negative_mining(pred_classes, true_classes, batch_size, loss_func=cross_entropy, negative_per_positive=3):
+def hard_negative_mining(
+    pred_classes,
+    true_classes,
+    batch_size,
+    loss_func=cross_entropy,
+    negative_per_positive=3,
+):
     true_classes_orig = true_classes.view(batch_size, -1)
     pos = true_classes_orig > 0
     nb_pos = (true_classes_orig > 0).long().sum(dim=1).view(-1, 1)
     nb_neg = nb_pos * negative_per_positive
-    class_loss = loss_func(
-        pred_classes, true_classes, reduce=False)
+    class_loss = loss_func(pred_classes, true_classes, reduce=False)
     class_loss = class_loss.view(true_classes_orig.size(0), -1)
     class_loss[pos] = 0
     _, inds = class_loss.sort(1, descending=True)

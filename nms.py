@@ -1,6 +1,7 @@
 import numpy as np
 from match import iou
 
+
 def non_maximal_suppression(boxes, confidences, thres=0.3):
     # TODO replace with cv2.dnn.NMSBoxes ?
     boxes = np.array(boxes)

@@ -1,6 +1,7 @@
 import os
 import sys
-sys.path.append('..')
+
+sys.path.append("..")
 import numpy as np
 import torch
 import torch.nn as nn
@@ -27,29 +28,28 @@ from albumentations import Resize
 
 from train import prediction_layer
 
-data = torch.load('model.th')
-model = data['model']
+data = torch.load("model.th")
+model = data["model"]
 model.cuda()
 model.eval()
 
-anchors = data['anchors']
-transform = data['transform']
+anchors = data["anchors"]
+transform = data["transform"]
 
 filenames, annotations = get_annotations(
-    images_folder='small',
-    annotations_file='small/annotations.json'
+    images_folder="small", annotations_file="small/annotations.json"
 )
-image_size = 224 
-transform = Compose([
-    HorizontalFlip(p=0.0),
-    Resize(height=image_size, width=image_size, p=1.0),
-    Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), max_pixel_value=255.),
-])
-dataset = DetectionDataset(
-    filenames, 
-    annotations,
-    transform=transform,
+image_size = 224
+transform = Compose(
+    [
+        HorizontalFlip(p=0.0),
+        Resize(height=image_size, width=image_size, p=1.0),
+        Normalize(
+            mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225), max_pixel_value=255.0
+        ),
+    ]
 )
+dataset = DetectionDataset(filenames, annotations, transform=transform)
 for idx in range(100):
     image, true_boxes, true_classes = dataset[idx]
     print(filenames[idx])
@@ -64,10 +64,10 @@ for idx in range(100):
 
     true_classes = true_classes.long().numpy()
     true_boxes = true_boxes.numpy()
-    true_boxes[:, XMIN] *=  orig_w
-    true_boxes[:, YMIN] *=  orig_h
-    true_boxes[:, WIDTH] *=  orig_w
-    true_boxes[:, HEIGHT] *=  orig_h
+    true_boxes[:, XMIN] *= orig_w
+    true_boxes[:, YMIN] *= orig_h
+    true_boxes[:, WIDTH] *= orig_w
+    true_boxes[:, HEIGHT] *= orig_h
 
     image = image.view((1,) + image.size())
     image = image.float().cuda()
@@ -81,45 +81,49 @@ for idx in range(100):
 
     pred_boxes = decode_bounding_boxes(anchors, pred_boxes)
     pred_boxes[:, XMIN] *= orig_w
-    pred_boxes[:, YMIN] *=  orig_h
-    pred_boxes[:, WIDTH] *=  orig_w
-    pred_boxes[:, HEIGHT] *=  orig_h
+    pred_boxes[:, YMIN] *= orig_h
+    pred_boxes[:, WIDTH] *= orig_w
+    pred_boxes[:, HEIGHT] *= orig_h
 
     # eval
     evaluate = False
     if evaluate:
         for class_id in np.unique(true_classes):
             pred_scores_class = pred_classes[:, class_id]
-            #indices = non_maximal_suppression(pred_boxes, pred_scores_class)
-            #pred_boxes_class = pred_boxes[indices]
-            #pred_scores_class = pred_scores_class[indices]
+            # indices = non_maximal_suppression(pred_boxes, pred_scores_class)
+            # pred_boxes_class = pred_boxes[indices]
+            # pred_scores_class = pred_scores_class[indices]
 
             indices = np.argsort(-pred_scores_class)
             print(pred_boxes.shape, pred_scores_class.shape)
             pred_boxes_class = pred_boxes[indices]
             pred_scores_class = pred_scores_class[indices]
-            
-            true_boxes_class = true_boxes[true_classes==class_id]
 
-            matching = match_ordered_boxes(pred_boxes_class, true_boxes_class, iou_threshold=0.5)
-            true = np.any(matching, axis=1).astype('int32')
-            title = 'Class {}'.format(dataset.decode_class[class_id])
+            true_boxes_class = true_boxes[true_classes == class_id]
+
+            matching = match_ordered_boxes(
+                pred_boxes_class, true_boxes_class, iou_threshold=0.5
+            )
+            true = np.any(matching, axis=1).astype("int32")
+            title = "Class {}".format(dataset.decode_class[class_id])
             print(title)
-            print('#' * len(title))
+            print("#" * len(title))
             for thresh in np.linspace(0.01, 0.99, 10):
-                print('Threshold : {:.3f}'.format(thresh))
-                pred = (pred_scores_class >= thresh).astype('int32')
-                nb_true_positives = ((pred==1) & (true==1)).sum()
+                print("Threshold : {:.3f}".format(thresh))
+                pred = (pred_scores_class >= thresh).astype("int32")
+                nb_true_positives = ((pred == 1) & (true == 1)).sum()
                 if pred.sum():
-                    precision = (nb_true_positives / pred.sum())
+                    precision = nb_true_positives / pred.sum()
                 else:
                     precision = 0
                 recall = nb_true_positives / len(true_boxes_class)
-                print('Detected : {}/{}'.format(nb_true_positives, len(true_boxes_class)))
-                print('Precision : {:.5f}'.format(precision))
-                print('')
+                print(
+                    "Detected : {}/{}".format(nb_true_positives, len(true_boxes_class))
+                )
+                print("Precision : {:.5f}".format(precision))
+                print("")
     # draw anchors
-    draw_anchors = True 
+    draw_anchors = True
     aboxes = anchors.copy()
     aboxes[:, XMIN] *= orig_w
     aboxes[:, YMIN] *= orig_h
@@ -132,14 +136,14 @@ for idx in range(100):
         orig_img = draw_bounding_boxes(
             orig_img,
             boxes,
-            [''] * len(boxes),
-            color=(255, 0, 255), 
+            [""] * len(boxes),
+            color=(255, 0, 255),
             text_color=(255, 0, 255),
         )
     # viz
     pred_scores = pred_classes.max(axis=1)
     pred_classes = pred_classes.argmax(axis=1)
-    keep = (pred_classes > 0) #& (pred_scores > 0.99)
+    keep = pred_classes > 0  # & (pred_scores > 0.99)
     pred_classes = pred_classes[keep]
     pred_scores = pred_scores[keep]
     pred_boxes = pred_boxes[keep]
@@ -160,19 +164,15 @@ for idx in range(100):
     true_classes = [dataset.decode_class[class_id] for class_id in true_classes]
     pred_classes = [dataset.decode_class[class_id] for class_id in pred_classes]
     orig_img = draw_bounding_boxes(
-        orig_img, 
-        true_boxes, 
-        true_classes, 
-        color=(255, 0, 0), 
-        text_color=(255, 0, 0),
+        orig_img, true_boxes, true_classes, color=(255, 0, 0), text_color=(255, 0, 0)
     )
     orig_img = draw_bounding_boxes(
-        orig_img, 
-        pred_boxes, 
-        pred_classes, 
+        orig_img,
+        pred_boxes,
+        pred_classes,
         scores=pred_scores,
-        color=(0, 255, 0), 
-        text_color=(0, 255, 0), 
+        color=(0, 255, 0),
+        text_color=(0, 255, 0),
     )
-    orig_img = orig_img.astype('uint8')
-    imsave('test/' + os.path.basename(filenames[idx]), orig_img)
+    orig_img = orig_img.astype("uint8")
+    imsave("test/" + os.path.basename(filenames[idx]), orig_img)
